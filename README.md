@@ -1,5 +1,5 @@
 # Music Note Generator
-Members: Melvin Cheng, Megan Lai, Jolin Huang, Harsh Nigam
+Members: Melvin Cheng, Megan Lai, Harsh Nigam
 
 ## Project Overview
 
