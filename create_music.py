@@ -2,19 +2,17 @@ from music21 import stream, note, tempo
 import random
 import os
 
-# Configuration
-NUM_FILES = 5000
-NOTES_PER_FILE = 10        # number of random notes per MIDI file
+NUM_FILES = 5000    
 MIN_PITCH = 36             # C2
 MAX_PITCH = 96             # C7
-DURATIONS = [0.25, 0.5, 1.0, 1.5, 2.0]  # quarter, half, whole, etc.
-BPM = 120
-OUTPUT_DIR = "/Users/melvincheng/Documents/Spring 2026/CS4100/CS4100_Final_Project_Group20/Midi Files"
+DURATIONS = [0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0]  # sixteenth, eighth, quarter, dotted quarter, half, dotted half, whole
+OUTPUT_DIR = "Midi Files"
 
-def generate_random_midi(output_path, notes_per_file=NOTES_PER_FILE):
+def generate_random_midi(output_path):
     s = stream.Stream()
-    s.append(tempo.MetronomeMark(number=BPM))
-
+    bpm = random.randint(60, 180)
+    s.append(tempo.MetronomeMark(number=bpm))
+    notes_per_file = random.randint(10, 50)
     for _ in range(notes_per_file):
         pitch = random.randint(MIN_PITCH, MAX_PITCH)
         duration = random.choice(DURATIONS)

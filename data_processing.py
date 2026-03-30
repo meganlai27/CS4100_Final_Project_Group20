@@ -6,6 +6,7 @@ import pandas as pd
 
 FIXED_LENGTH = 128
 N_BINS = 84
+MIN_SEGMENT_LENGTH = 1024
 
 def midi_to_wav(midi_file, output_dir, soundfont_path):
     os.makedirs(output_dir, exist_ok=True)
@@ -30,11 +31,20 @@ def pad_or_truncate(cqt, fixed_length=FIXED_LENGTH):
     pad_width = fixed_length - cqt.shape[1]
     return np.pad(cqt, ((0, 0), (0, pad_width)))
 
+def seconds_to_beat_fraction(duration_seconds, bpm):
+    """
+    Convert duration in seconds to number of quarter notes.
+    Quarter note = 1.0, Half note = 2.0, Whole note = 4.0, etc.
+    Snaps to nearest 0.25 subdivision.
+    """
+    quarter_note_duration = 60 / bpm
+    beat_fraction = duration_seconds / quarter_note_duration
+    return round(beat_fraction * 4) / 4  # snap to nearest 0.25
+
 def main():
-    midi_dir = "/Users/melvincheng/Documents/Spring 2026/CS4100/CS4100_Final_Project_Group20/Midi Files"
-    output_dir = "/Users/melvincheng/Documents/Spring 2026/CS4100/CS4100_Final_Project_Group20/Wav_Files"
-    soundfont_path = "/Users/melvincheng/Documents/Spring 2026/CS4100/CS4100_Final_Project_Group20/GeneralUser-GS/GeneralUser-GS.sf2"
-    save_dir = "/Users/melvincheng/Documents/Spring 2026/CS4100/CS4100_Final_Project_Group20"
+    midi_dir = "Midi Files"
+    output_dir = "Wav_Files"
+    soundfont_path = "GeneralUser-GS/GeneralUser-GS.sf2"
 
     all_features, all_notes, all_durations = [], [], []
 
@@ -53,13 +63,18 @@ def main():
 
         # Extract labels from MIDI
         midi_data = pretty_midi.PrettyMIDI(midi_path)
+
+        # Get BPM from MIDI tempo map
+        tempo_times, tempo_values = midi_data.get_tempo_changes()
+        bpm = tempo_values[0] if len(tempo_values) > 0 else 120.0
+
         for instrument in midi_data.instruments:
             for note in instrument.notes:
                 start = int(note.start * sr)
                 end = int(note.end * sr)
                 segment = y[start:end]
 
-                if len(segment) == 0:
+                if len(segment) < MIN_SEGMENT_LENGTH:
                     continue
 
                 cqt = create_cqt(segment, sr)
@@ -67,14 +82,15 @@ def main():
 
                 all_features.append(cqt_fixed)
                 all_notes.append(pretty_midi.note_number_to_name(note.pitch))
-                all_durations.append(round(note.end - note.start, 4))
+                beat_fraction = seconds_to_beat_fraction(note.end - note.start, bpm)
+                all_durations.append(beat_fraction)
 
     # Save dataset
-    features = np.stack(all_features)  # shape: (num_notes, 84, 128)
+    features = np.stack(all_features)
     df = pd.DataFrame({'note': all_notes, 'duration': all_durations})
 
-    np.save(os.path.join(save_dir, 'features.npy'), features)
-    df.to_csv(os.path.join(save_dir, 'labels.csv'), index=False)
+    np.save(os.path.join('features.npy'), features)
+    df.to_csv(os.path.join('labels.csv'), index=False)
 
     print(f"Saved {len(df)} notes")
     print(f"Features shape: {features.shape}")
