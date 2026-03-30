@@ -1,8 +1,10 @@
 import librosa
 import pretty_midi
 import os
+import glob
 import numpy as np
 import pandas as pd
+from multiprocessing import Pool, cpu_count
 
 FIXED_LENGTH = 128
 N_BINS = 84
@@ -41,30 +43,15 @@ def seconds_to_beat_fraction(duration_seconds, bpm):
     beat_fraction = duration_seconds / quarter_note_duration
     return round(beat_fraction * 4) / 4  # snap to nearest 0.25
 
-def main():
-    midi_dir = "Midi Files"
-    output_dir = "Wav_Files"
-    soundfont_path = "GeneralUser-GS/GeneralUser-GS.sf2"
 
-    all_features, all_notes, all_durations = [], [], []
+def process_single_midi(args):
+    midi_path, output_dir, soundfont_path = args
+    features, notes, durations = [], [], []
 
-    for midi_file in os.listdir(midi_dir):
-        if not midi_file.endswith('.mid'):
-            continue
-
-        print(f"Processing {midi_file}...")
-        midi_path = os.path.join(midi_dir, midi_file)
-
-        # Convert MIDI to WAV
+    try:
         wav_path = midi_to_wav(midi_path, output_dir, soundfont_path)
-
-        # Load WAV
         y, sr = librosa.load(wav_path, sr=22050)
-
-        # Extract labels from MIDI
         midi_data = pretty_midi.PrettyMIDI(midi_path)
-
-        # Get BPM from MIDI tempo map
         tempo_times, tempo_values = midi_data.get_tempo_changes()
         bpm = tempo_values[0] if len(tempo_values) > 0 else 120.0
 
@@ -79,18 +66,40 @@ def main():
 
                 cqt = create_cqt(segment, sr)
                 cqt_fixed = pad_or_truncate(cqt)
+                features.append(cqt_fixed)
+                notes.append(pretty_midi.note_number_to_name(note.pitch))
+                durations.append(seconds_to_beat_fraction(note.end - note.start, bpm))
+    except Exception as e:
+        print(f"Error processing {midi_path}: {e}")
 
-                all_features.append(cqt_fixed)
-                all_notes.append(pretty_midi.note_number_to_name(note.pitch))
-                beat_fraction = seconds_to_beat_fraction(note.end - note.start, bpm)
-                all_durations.append(beat_fraction)
+    return features, notes, durations
 
-    # Save dataset
+def main():
+    midi_dir = "Midi Files"
+    output_dir = "Wav_Files"
+    soundfont_path = "GeneralUser-GS/GeneralUser-GS.sf2"
+
+    midi_files = glob.glob(os.path.join(midi_dir, "**/*.mid"), recursive=True)
+    print(f"Found {len(midi_files)} MIDI files")
+    print(f"Using {cpu_count()} CPU cores")
+
+    args = [(f, output_dir, soundfont_path) for f in midi_files]
+
+    all_features, all_notes, all_durations = [], [], []
+
+    with Pool(processes=cpu_count()) as pool:
+        for i, (features, notes, durations) in enumerate(pool.imap(process_single_midi, args)):
+            all_features.extend(features)
+            all_notes.extend(notes)
+            all_durations.extend(durations)
+            if (i + 1) % 100 == 0:
+                print(f"Processed {i+1}/{len(midi_files)} files...")
+
     features = np.stack(all_features)
     df = pd.DataFrame({'note': all_notes, 'duration': all_durations})
 
-    np.save(os.path.join('features.npy'), features)
-    df.to_csv(os.path.join('labels.csv'), index=False)
+    np.save('features.npy', features)
+    df.to_csv('labels.csv', index=False)
 
     print(f"Saved {len(df)} notes")
     print(f"Features shape: {features.shape}")
