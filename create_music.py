@@ -2,10 +2,10 @@ from music21 import stream, note, tempo
 import random
 import os
 
-NUM_FILES = 500  
+NUM_FILES = 1000  
 MIN_PITCH = 36             # C2
 MAX_PITCH = 96             # C7
-DURATIONS = [0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0]  # sixteenth, eighth, quarter, dotted quarter, half, dotted half, whole
+DURATIONS = [0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0]  # sixteenth, eighth, quarter, dotted quarter, half, dotted half, whole, rest
 OUTPUT_DIR = "Midi Files"
 
 def generate_random_midi(output_path):
@@ -14,9 +14,12 @@ def generate_random_midi(output_path):
     s.append(tempo.MetronomeMark(number=bpm))
     notes_per_file = 40
     for _ in range(notes_per_file):
-        pitch = random.randint(MIN_PITCH, MAX_PITCH)
         duration = random.choice(DURATIONS)
-        n = note.Note(pitch)
+        if random.random() < 0.1:  # 10% chance of a rest
+            n = note.Rest()
+        else:
+            pitch = random.randint(MIN_PITCH, MAX_PITCH)
+            n = note.Note(pitch)
         n.duration.quarterLength = duration
         s.append(n)
 

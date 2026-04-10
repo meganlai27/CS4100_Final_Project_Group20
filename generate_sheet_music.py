@@ -10,6 +10,8 @@ import data_processing as dp
 from note_cnn import CNN
 from rhythm_cnn import RhythmCNN
 
+FILENAME = "Hilary Hahn - J.S. Bach Partita for Violin Solo No. 1 in B Minor, BWV 1002 - 4. Double (Presto) - Hilary Hahn (128k)"
+
 # Process real audio from wav file
 def create_cqt(y, sr, hop_length=512):
     cqt = librosa.cqt(y, sr=sr, hop_length=hop_length, n_bins=dp.N_BINS, bins_per_octave=12)
@@ -121,7 +123,7 @@ def generate_sheet_music(wav_file, output_path):
         le_duration.classes_ = np.load('rhythm_label_encoder_classes.npy', allow_pickle=True)
 
     note_model = CNN(num_notes=len(le_note.classes_))
-    note_model.load_state_dict(torch.load('note_classifier.pth'))
+    note_model.load_state_dict(torch.load('note_cnn.pth'))
     rhythm_model = RhythmCNN(num_classes=len(le_duration.classes_))
     rhythm_model.load_state_dict(torch.load('rhythm_classifier.pth'))
 
@@ -134,9 +136,9 @@ def generate_sheet_music(wav_file, output_path):
     if notes is not None:
         print("\nGenerating final sheet music...")
         if rhythms is not None:
-            generate_musicxml(notes[:50], le_note, rhythm_preds=rhythms[:50], le_duration=le_duration, file_path = output_path)
+            generate_musicxml(notes, le_note, rhythm_preds=rhythms, le_duration=le_duration, file_path = output_path)
         else:
-            generate_musicxml(notes[:50], le_note, output_path)
+            generate_musicxml(notes, le_note, output_path)
 
     print(f'Generate Sheet Music saved to {output_path}')
 
@@ -144,5 +146,5 @@ def generate_sheet_music(wav_file, output_path):
 
 
 if __name__ == "__main__":
-    filename = "happy_birthday_3"
+    filename = FILENAME
     generate_sheet_music(f"process_recording_files/{filename}.wav", f"pred_{filename}.mid")

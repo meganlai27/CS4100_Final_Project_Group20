@@ -49,7 +49,7 @@ def train_model():
 
     # Set training params
     lr = 0.001
-    model = CNN(num_notes=61) # todo: get this number from the dataset
+    model = CNN(num_notes=num_classes)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 

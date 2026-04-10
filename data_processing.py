@@ -9,6 +9,7 @@ from multiprocessing import Pool, cpu_count
 FIXED_LENGTH = 128
 N_BINS = 84
 MIN_SEGMENT_LENGTH = 1024
+MIN_REST_BEATS = 0.125
 
 def midi_to_wav(midi_file, output_dir, soundfont_path):
     os.makedirs(output_dir, exist_ok=True)
@@ -44,6 +45,30 @@ def seconds_to_beat_fraction(duration_seconds, bpm):
     return round(beat_fraction * 4) / 4  # snap to nearest 0.25
 
 
+def detect_rests(sorted_notes, bpm):
+    """
+    Given a list of pretty_midi Note objects sorted by start time,
+    yields (rest_duration_beats,) for each gap that is at least MIN_REST_BEATS long.
+    Also checks for a rest before the first note.
+    """
+    if not sorted_notes:
+        return
+
+    # Gap before the first note
+    if sorted_notes[0].start > 0:
+        beats = seconds_to_beat_fraction(sorted_notes[0].start, bpm)
+        if beats >= MIN_REST_BEATS:
+            yield beats
+
+    # Gaps between consecutive notes
+    for i in range(len(sorted_notes) - 1):
+        gap = sorted_notes[i + 1].start - sorted_notes[i].end
+        if gap > 0:
+            beats = seconds_to_beat_fraction(gap, bpm)
+            if beats >= MIN_REST_BEATS:
+                yield beats
+
+
 def process_single_midi(args):
     midi_path, output_dir, soundfont_path = args
     features, notes, durations = [], [], []
@@ -56,7 +81,9 @@ def process_single_midi(args):
         bpm = tempo_values[0] if len(tempo_values) > 0 else 120.0
 
         for instrument in midi_data.instruments:
-            for note in instrument.notes:
+            sorted_notes = sorted(instrument.notes, key=lambda n: n.start)
+
+            for note in sorted_notes:
                 start = int(note.start * sr)
                 end = int(note.end * sr)
                 segment = y[start:end]
@@ -69,6 +96,12 @@ def process_single_midi(args):
                 features.append(cqt_fixed)
                 notes.append(pretty_midi.note_number_to_name(note.pitch))
                 durations.append(seconds_to_beat_fraction(note.end - note.start, bpm))
+
+            # Rests are silence — represent them with a zero feature vector
+            for rest_beats in detect_rests(sorted_notes, bpm):
+                features.append(np.zeros((N_BINS, FIXED_LENGTH)))
+                notes.append('rest')
+                durations.append(rest_beats)
     except Exception as e:
         print(f"Error processing {midi_path}: {e}")
 

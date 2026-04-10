@@ -37,16 +37,10 @@ def load_data():
 
 def get_test_loader(features, labels):
     dataset = NoteDataset(features, labels)
-    
-    # Train/val/test split matching dataset length
-    total = len(dataset)
-    test_size = int(total * 0.1)
-    val_size = int(total * 0.1)
-    train_size = total - test_size - val_size
 
     generator = torch.Generator().manual_seed(42)
     _, _, test_dataset = torch.utils.data.random_split(
-        dataset, [train_size, val_size, test_size], generator=generator
+        dataset, [0.8, 0.1, 0.1], generator=generator
     )
 
     return DataLoader(test_dataset, batch_size=32, shuffle=False)
@@ -131,12 +125,12 @@ def main():
     # Load dataset
     features, y_note, y_duration, le_note, le_duration = load_data()
 
-    note_exists = os.path.exists('note_classifier.pth')
+    note_exists = os.path.exists('note_cnn.pth')
     rhythm_exists = y_duration is not None and os.path.exists('rhythm_classifier.pth')
 
     # Handle scenario where neither model is trained
     if not note_exists and not rhythm_exists:
-        print("Neither 'note_classifier.pth' nor 'rhythm_classifier.pth' was found.")
+        print("Neither 'note_cnn.pth' nor 'rhythm_classifier.pth' was found.")
         return
 
     note_preds = None
@@ -148,7 +142,7 @@ def main():
         test_loader = get_test_loader(features, y_note)
         
         note_model = CNN(num_notes=len(le_note.classes_)).to(device)
-        note_model.load_state_dict(torch.load('note_classifier.pth', map_location=device))
+        note_model.load_state_dict(torch.load('note_cnn.pth', map_location=device))
         
         note_preds, labels = evaluate_model(note_model, test_loader, device)
         
