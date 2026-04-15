@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from music21 import stream, note, tempo, metadata
 
-from model import CNN
+from note_cnn import CNN
 from rhythm_cnn import RhythmCNN
 from dataset import NoteDataset
 
@@ -47,6 +47,20 @@ def get_test_loader(features, labels):
 
 
 def evaluate_model(model, loader, device):
+    model.eval()
+    all_preds, all_labels = [], []
+
+    with torch.no_grad():
+        for features, labels in loader:
+            features, labels = features.to(device), labels.to(device)
+            out = model(features)
+            
+            all_preds.extend(out.argmax(1).cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    return np.array(all_preds), np.array(all_labels)
+
+def evaluate_model_multilabel(model, loader, device):
     model.eval()
     all_preds, all_labels = [], []
 

@@ -1,67 +1,107 @@
 import torch.nn as nn
 import torch
-
 from tqdm.autonotebook import tqdm
+import matplotlib.pyplot as plt
 
-# Train the model
+def train(model, train_dataset, val_dataset, optimizer=None, criterion=nn.CrossEntropyLoss(), 
+          save_path='model.pth', epochs=1, lr=0.01, num_classes=61):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    criterion = criterion.to(device) if hasattr(criterion, 'to') else criterion
 
-def train(model, train_dataset: torch.utils.data.DataLoader, optimizer = None, criterion = nn.CrossEntropyLoss(), save_path = 'model.pth', weights=None, epochs: int = 1, lr: float = 0.01, verbose=False, num_classes = 61):
     if not optimizer:
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    correct = 0
-    total = 0
+    train_losses, val_losses, val_accuracies = [], [], []
 
-    train_losses = []
-
-    for epoch in tqdm(range(epochs)):  # loop over the dataset multiple times
+    def train_epoch():
         model.train()
-
         running_loss = 0.0
-        print(f'Running Epoch {epoch + 1}...')
-        for i, data in tqdm(enumerate(train_dataset, 0), total=len(train_dataset)):
-            # get the inputs; data is a list of [inputs, labels]
+        correct = 0
+        total = 0
+
+        for i, data in tqdm(enumerate(train_dataset), total=len(train_dataset)):
             inputs, labels = data
-            labels = labels.long() 
+            inputs = inputs.to(device)
+            labels = labels.long().to(device)
 
-            # zero the parameter gradients
             optimizer.zero_grad()
-
-            # forward + backward + optimize
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+
+            running_loss += loss.item()
             correct += (outputs.argmax(1) == labels).sum().item()
             total += labels.size(0)
 
-            # print statistics
-            running_loss += loss.item()
-            if i % 100 == 99:    
-                avg_loss = running_loss / 100
-                train_losses.append(avg_loss)
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
-                running_loss = 0.0
+        avg_loss = running_loss / len(train_dataset)
+        accuracy = correct / total
+        return avg_loss, accuracy
+
+    def validate_epoch():
+        model.eval()
+        running_loss = 0.0
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for i, data in tqdm(enumerate(val_dataset), total=len(val_dataset)):
+                inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.long().to(device)
+
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+
+                running_loss += loss.item()
+                correct += (outputs.argmax(1) == labels).sum().item()
+                total += labels.size(0)
+
+        avg_loss = running_loss / len(val_dataset)
+        accuracy = correct / total
+        return avg_loss, accuracy
+
+    for epoch in tqdm(range(epochs)):
+        print(f'Epoch {epoch + 1}/{epochs}')
+
+        train_loss, train_acc = train_epoch()
+        val_loss, val_acc = validate_epoch()
+
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        val_accuracies.append(val_acc)
+
+        print(f'  Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f}')
+        print(f'  Val Loss:   {val_loss:.4f} | Val Acc:   {val_acc:.4f}')
 
     print('Finished Training')
     torch.save(model.state_dict(), save_path)
-    print(f'Model saved to {save_path}')
 
-    accuracy = correct / total
+    return train_losses, val_losses, val_accuracies
 
-    print(f'Training accuracy: {accuracy:.4f}')
 
-    return train_losses, accuracy
-
-import matplotlib.pyplot as plt
-def graph_loss(all_losses, save_figure):
+def graph_losses(train_losses, val_losses, save_figure):
     plt.figure(figsize=(8, 4))
-    plt.plot(all_losses)
-    plt.xlabel('Steps (every 100 batches)')
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(val_losses, label='Val Loss')
+    plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.title('Training loss')
+    plt.title('Training vs Validation Loss')
+    plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(save_figure)
 
+
+def graph_accuracy(val_accuracies, save_figure):
+    plt.figure(figsize=(8, 4))
+    plt.plot(val_accuracies, label='Val Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Validation Accuracy')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
     plt.savefig(save_figure)

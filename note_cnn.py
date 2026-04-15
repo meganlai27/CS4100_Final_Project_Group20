@@ -1,20 +1,23 @@
+import dataset
+import torch.optim as optim
+import train_old2
 from torch import nn
 
 
-# https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
+# reference: https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 class CNN(nn.Module):
     def __init__(self, num_notes, kernel_size=(3, 3)):
         super().__init__()
 
         self.kernel_size = kernel_size
 
+        # 3-layer convolutional layer
         self.conv = nn.Sequential(
-            # Use a kernel size
             nn.Conv2d(1, 32, kernel_size=self.kernel_size, stride=1, padding=1), # input channel (1 for grayscale), output channels
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
 
-            nn.Conv2d(32, 64, kernel_size=self.kernel_size, padding=1), # input channels -> 32 (from previous conv layer)
+            nn.Conv2d(32, 64, kernel_size=self.kernel_size, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
 
@@ -39,29 +42,29 @@ class CNN(nn.Module):
         logits = self.note_classification(x)
         return logits
     
-
-import dataset
-import torch.optim as optim
 import train
-def train_model():
+
+# Train the CNN model from above
+def train_model(lr = 0.001):
     # get data from dataloader
     train_dataset, val_dataset, test_dataset, num_classes = dataset.data_pipeline(feature_id='note')
 
     # Set training params
-    lr = 0.001
     model = CNN(num_notes=num_classes)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    save_path = "note_cnn.pth"
+    save_path = "note_classifier.pth"
 
     # train model
     print('Begin training...')
-    train_losses = train.train(model, train_dataset, optimizer = optimizer, criterion = criterion, save_path = save_path, epochs = 10) # 10 is a suffiecient number of epochs
+    train_losses, val_losses, val_accuracies = train.train(model, train_dataset, val_dataset, optimizer = optimizer, criterion = criterion, save_path = save_path, epochs = 10) # 10 is a suffiecient number of epochs
+    # Note: the model learns quickly and is able to get a high accuracy score within a few epochs
+
 
     # Evaluate training loss
-
-    train.graph_loss(train_losses, save_figure="note_cnn_training_loss.png")
+    train.graph_losses(train_losses, val_losses, save_figure="note_cnn_training_loss.png")
+    train.graph_accuracy(val_accuracies, save_figure="note_cnn_validation_accuracies.png")
 
 
 if __name__ == "__main__":
