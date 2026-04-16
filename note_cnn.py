@@ -1,6 +1,6 @@
 import dataset
 import torch.optim as optim
-import train_old2
+import notebooks.train_old2 as train_old2
 from torch import nn
 
 

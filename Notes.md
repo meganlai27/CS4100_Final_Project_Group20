@@ -29,7 +29,3 @@ Pooling layer:
 
 1. Max Pooling - takes max value of window
 2. Average Pooling - takes average of window
-
-## Questions
-
-CQT representation as an array -> Each row is a semitone on the range, columns are time. Each cell is energy there

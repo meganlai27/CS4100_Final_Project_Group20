@@ -32,7 +32,9 @@ Parameters:
 - dataloader_test_path: Path to save/load the test dataloader
 - split: List containing the proportions for train, validation, and test splits (ex., [<train_split>, <val_split>, <test_split>] = [0.8, 0.1, 0.1])
 """
-def data_pipeline(feature_id, features = "features.npy", labels = "labels.csv", dataloader_train_path="./dataloader/train.pt", dataloader_val_path="./dataloader/val.pt", dataloader_test_path="./dataloader/test.pt", split = [.8, .1, .1], verbose = False):
+def data_pipeline(feature_id, features = "features.npy", labels = "labels.csv", 
+                  dataloader_train_path="./dataloader/train.pt", dataloader_val_path="./dataloader/val.pt", dataloader_test_path="./dataloader/test.pt", 
+                  split = [.8, .1, .1], verbose = False):
     # Load dataset from features and files
     features = np.load(features)    # (n, 84, 128) for 84 frequency bins and 128 time steps
     df = pd.read_csv(labels)
@@ -75,9 +77,9 @@ def data_pipeline(feature_id, features = "features.npy", labels = "labels.csv", 
         )
 
         # Save the dataloaders --> Too large to load
-        # torch.save(train_dataset, dataloader_train_path)
-        # torch.save(val_dataset, dataloader_val_path)
-        # torch.save(test_dataset, dataloader_test_path)
+        torch.save(train_dataset, dataloader_train_path)
+        torch.save(val_dataset, dataloader_val_path)
+        torch.save(test_dataset, dataloader_test_path)
 
     # create loaders
     dataloader_train = DataLoader(train_dataset, batch_size=32, shuffle=True)
@@ -86,5 +88,28 @@ def data_pipeline(feature_id, features = "features.npy", labels = "labels.csv", 
 
     return dataloader_train, dataloader_val, dataloader_test, num_labels
 
+def load_dataset(dataset_path):
+    try:
+        dataset = torch.load(dataset_path, weights_only=False)
+        print(f'Successfully loaded dataset from {dataset_path}.')
+        return dataset
+    except Exception as e:
+        print(f'Received error loading dataset. The file may be too big: {e}')
+        raise e
 
-# Will be on final, finding the derivative of the loss function (should be able to get through most of lecture)
+def main():
+    dataloader_train_path = "./dataloader/notes_train.pt"
+    dataloader_val_path = "./dataloader/notes_val.pt"
+    dataloader_test_path = "./dataloader/notes_test.pt"
+
+    split = [.8, .1, .1]
+
+    train_dataset, val_dataset, test_dataset, num_classes = data_pipeline(feature_id='note', split=split,
+                                                                          dataloader_train_path=dataloader_train_path, dataloader_val_path=dataloader_val_path, dataloader_test_path=dataloader_test_path)
+    
+    print(f'Created dataloaders and saved path to {dataloader_train_path}, {dataloader_val_path}, {dataloader_test_path}')
+
+    return train_dataset, val_dataset, test_dataset, num_classes
+
+if __name__ == "__main__":
+    main()

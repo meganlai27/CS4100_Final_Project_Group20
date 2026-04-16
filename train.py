@@ -3,6 +3,7 @@ import torch
 from tqdm.autonotebook import tqdm
 import matplotlib.pyplot as plt
 
+# Model training for note classification model
 def train(model, train_dataset, val_dataset, optimizer=None, criterion=nn.CrossEntropyLoss(), 
           save_path='model.pth', epochs=1, lr=0.01, num_classes=61):
     
@@ -40,6 +41,7 @@ def train(model, train_dataset, val_dataset, optimizer=None, criterion=nn.CrossE
         accuracy = correct / total
         return avg_loss, accuracy
 
+    # Evaluate the accuracies in the validation dataset during training
     def validate_epoch():
         model.eval()
         running_loss = 0.0
@@ -81,6 +83,7 @@ def train(model, train_dataset, val_dataset, optimizer=None, criterion=nn.CrossE
 
     return train_losses, val_losses, val_accuracies
 
+# Graph and evaluate training loss & accuracy
 
 def graph_losses(train_losses, val_losses, save_figure):
     plt.figure(figsize=(8, 4))

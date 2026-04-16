@@ -9,7 +9,12 @@ from music21 import stream, note, tempo, metadata
 import data_processing as dp
 from note_cnn import CNN
 from rhythm_cnn import RhythmCNN
-
+'''
+To use this file:
+1. Add the WAV file whose audio is to be generated into sheet music to `process_recording_files`
+2. Modify the FILENAME constant below to generate the correct sheet music
+'''
+# TODO: Modify this filename to get the WAV file to be predicted
 FILENAME = "Hilary Hahn - J.S. Bach Partita for Violin Solo No. 1 in B Minor, BWV 1002 - 4. Double (Presto) - Hilary Hahn (128k)"
 
 # Process real audio from wav file
@@ -59,9 +64,8 @@ def get_preds(model, features, device = 'cpu'):
 
     with torch.no_grad():
         # for features, labels in loader:
-        features = np.array(features, dtype=np.float32)  # force correct type
+        features = np.array(features, dtype=np.float32)
     
-        # Now convert to tensor and add channel dim
         tensor = torch.from_numpy(features).unsqueeze(1)
         out = model(tensor)
         
@@ -74,10 +78,7 @@ def predict_notes(features: np.ndarray, note_model, rhythm_model):
     # Ensure it's a plain numpy array of the right dtype first
     features = np.array(features, dtype=np.float32)  
     
-    # Now convert to tensor and add channel dim
     tensor = torch.from_numpy(features).unsqueeze(1)  
-    
-    # print(type(tensor), tensor.dtype, tensor.shape)
 
     note_preds = get_preds(note_model, features)
 
